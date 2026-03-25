@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">presales-apk</string>
+    <string name="title_activity_main">presales-apk</string>
+    <string name="package_name">com.presales.tracker</string>
+    <string name="custom_url_scheme">com.presales.tracker</string>
+</resources>
