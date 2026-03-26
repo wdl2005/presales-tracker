@@ -1087,10 +1087,6 @@
             buildTrackerTree();
           } else if (tab.dataset.tab === 'stats') {
             buildStats();
-            // Wait for transition to finish (300ms) before drawing chart
-            setTimeout(() => {
-              drawMonthlyChart();
-            }, 350);
           }
         });
       });
@@ -1124,53 +1120,6 @@
       document.getElementById('hasSupportSwitch').addEventListener('change', (e) => {
         document.getElementById('supportNamesDiv').classList.toggle('show', e.target.checked);
       });
-    }
-
-    // 数据操作
-    function generateId() {
-      return Date.now().toString(36) + Math.random().toString(36).substr(2);
-    }
-
-    function getCustomers() {
-      return JSON.parse(localStorage.getItem(STORAGE_KEYS.CUSTOMERS) || '[]');
-    }
-
-    function saveCustomers(customers) {
-      localStorage.setItem(STORAGE_KEYS.CUSTOMERS, JSON.stringify(customers));
-    }
-
-    function getOpportunities() {
-      return JSON.parse(localStorage.getItem(STORAGE_KEYS.OPPORTUNITIES) || '[]');
-    }
-
-    function saveOpportunities(opportunities) {
-      localStorage.setItem(STORAGE_KEYS.OPPORTUNITIES, JSON.stringify(opportunities));
-    }
-
-    function getStatuses() {
-      const defaults = ['待跟进', '跟进中', '已成交', '已失效'];
-      const saved = JSON.parse(localStorage.getItem(STORAGE_KEYS.STATUSES) || 'null');
-      return saved || defaults;
-    }
-
-    function saveStatuses(statuses) {
-      localStorage.setItem(STORAGE_KEYS.STATUSES, JSON.stringify(statuses));
-    }
-
-    function getRecords() {
-      return JSON.parse(localStorage.getItem(STORAGE_KEYS.RECORDS) || '[]');
-    }
-
-    function saveRecords(records) {
-      localStorage.setItem(STORAGE_KEYS.RECORDS, JSON.stringify(records));
-    }
-
-    function getMyName() {
-      return localStorage.getItem(STORAGE_KEYS.MY_NAME) || '';
-    }
-
-    function saveMyNameValue(name) {
-      localStorage.setItem(STORAGE_KEYS.MY_NAME, name);
     }
 
     // 刷新统计
@@ -1495,19 +1444,6 @@
       const custId = document.getElementById('statsCustomerSelect') ? document.getElementById('statsCustomerSelect').value : '';
       const oppId = document.getElementById('statsOpportunitySelect') ? document.getElementById('statsOpportunitySelect').value : '';
 
-      // DEBUG alert
-      const sample = records.length > 0 ? records[0] : null;
-      const sampleInfo = sample
-        ? 'record[0]: customerId=' + sample.customerId + ' createTime=' + sample.createTime + ' typeof=' + (typeof sample.createTime) + ' dateStr=' + (typeof sample.createTime === 'number' ? new Date(sample.createTime).toISOString().substring(0,7) : String(sample.createTime).substring(0,7))
-        : 'no records';
-      const now = new Date();
-      const months12 = [];
-      for (let i = 11; i >= 0; i--) {
-        const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-        months12.push(d.toISOString().substring(0,7));
-      }
-      window._debug = { records: records.length, customers: customers.length, sampleInfo: sampleInfo, months12: months12, now: now.toISOString() };
-
       // Build 12 months
       const months = [];
       const now = new Date();
@@ -1577,16 +1513,7 @@
       const maxVal = Math.max(...totals, 1);
 
       if (series.length === 0) {
-        // Show debug info in placeholder so user can report
-        const sample = records.length > 0 ? records[0] : null;
-        const dateStr = sample ? (typeof sample.createTime === 'number' ? new Date(sample.createTime).toISOString().substring(0,7) : String(sample.createTime).substring(0,7)) : 'n/a';
-        const now12 = [];
-        const now = new Date();
-        for (let i = 11; i >= 0; i--) {
-          const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-          now12.push(d.toISOString().substring(0,7));
-        }
-        placeholder.innerHTML = '<div style="text-align:left;font-size:12px;color:#ef4444;line-height:1.8;">调试信息（请截图发给我）：<br>记录数=' + records.length + '<br>客户数=' + customers.length + '<br>月份列表=' + now12.join(', ') + '<br>首条日期=' + dateStr + '<br>首条customerId=' + (sample ? sample.customerId : 'n/a') + '<br>monthIdx[dateStr]=' + (monthIdx[dateStr] !== undefined ? monthIdx[dateStr] : 'undefined') + '</div>';
+        placeholder.innerHTML = '<div style="text-align:center;color:#9ca3af;font-size:13px;padding:30px;">暂无数据<br><span style="font-size:12px;">切换客户/商机组筛选，或添加更多交流记录</span></div>';
         placeholder.style.display = 'block';
         container.style.display = 'none';
         return;
