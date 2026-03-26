@@ -987,6 +987,10 @@
     // =============================================
     // 数据读写（保持原有同步 localStorage 逻辑不变）
     // =============================================
+    function generateId() {
+      return Date.now().toString(36) + Math.random().toString(36).substr(2);
+    }
+
     function getCustomers() {
       return JSON.parse(localStorage.getItem(STORAGE_KEYS.CUSTOMERS) || '[]');
     }
