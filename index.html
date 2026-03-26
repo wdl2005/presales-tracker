@@ -1409,39 +1409,36 @@
     }
 
     function onCustomerOrOppChange(changedBy) {
-      const custId = document.getElementById('statsCustomerSelect').value;
+      const custSelect = document.getElementById('statsCustomerSelect');
       const oppSelect = document.getElementById('statsOpportunitySelect');
+      const custId = custSelect.value;
       const opportunities = getOpportunities();
       const customers = getCustomers();
+
+      // 保存当前商机选择（客户变化时需要恢复）
+      const prevOppId = changedBy === 'customer' ? '' : oppSelect.value;
 
       // 如果是客户下拉触发的变化，清空商机选择
       if (changedBy === 'customer') {
         oppSelect.value = '';
       }
 
-      const oppId = oppSelect.value;
-
       oppSelect.innerHTML = '<option value="">全部商机</option>';
+      let filteredOpps = opportunities;
       if (custId) {
-        const filteredOpps = opportunities.filter(o => o.customerId === custId);
-        if (filteredOpps.length === 0) {
-          console.warn('[Chart] 客户ID=', custId, '下无商机，当前所有商机:', opportunities.map(o => ({id: o.id, name: o.name, customerId: o.customerId})));
-        }
-        filteredOpps.forEach(o => {
-          oppSelect.innerHTML += `<option value="${o.id}">${o.name}</option>`;
-        });
-      } else {
-        opportunities.forEach(o => {
-          oppSelect.innerHTML += `<option value="${o.id}">${o.name}</option>`;
-        });
+        filteredOpps = opportunities.filter(o => o.customerId === custId);
       }
-      // 重建后恢复商机选中值（仅当该商机属于当前客户时才生效）
-      if (oppId) {
-        oppSelect.value = oppId;
+      filteredOpps.forEach(o => {
+        oppSelect.innerHTML += `<option value="${o.id}">${o.name}</option>`;
+      });
+
+      // 客户变化后恢复之前选中的商机（仅当该商机属于当前客户时才生效）
+      if (changedBy === 'customer' && prevOppId && filteredOpps.some(o => o.id === prevOppId)) {
+        oppSelect.value = prevOppId;
       }
 
       const hint = document.getElementById('chartHint');
-      const currentOppId = oppSelect.value; // 重建后实际选中的值
+      const currentOppId = oppSelect.value;
       if (custId && currentOppId) {
         const opp = opportunities.find(o => o.id === currentOppId);
         hint.textContent = `堆叠柱状：${opp ? opp.name : '商机'}每月次数（下方数字：月度合计）`;
@@ -1993,7 +1990,7 @@
               <div class="list-item-sub">${c.city || '未设置城市'}</div>
             </div>
             <span class="list-item-action" onclick="event.stopPropagation(); showEditCustomer('${c.id}')">编辑</span>
-            <span class="list-item-action text-danger" onclick="event.stopPropagation(); deleteCustomer('${c.id}')">删除</span>
+            <span class="list-item-action text-danger" style="margin-left:12px;" onclick="event.stopPropagation(); deleteCustomer('${c.id}')">删除</span>
           </div>
         `).join('');
       }
@@ -2036,7 +2033,7 @@
                 <div class="list-item-sub">${customer?.name || '未知客户'} · <span class="tag ${statusClass[o.status] || 'gray'}" style="padding:2px 6px;font-size:11px;">${o.status}</span></div>
               </div>
               <span class="list-item-action" onclick="event.stopPropagation(); showEditOpportunity('${o.id}')">编辑</span>
-              <span class="list-item-action text-danger" onclick="event.stopPropagation(); deleteOpportunity('${o.id}')">删除</span>
+              <span class="list-item-action text-danger" style="margin-left:12px;" onclick="event.stopPropagation(); deleteOpportunity('${o.id}')">删除</span>
             </div>
           `;
         }).join('');
