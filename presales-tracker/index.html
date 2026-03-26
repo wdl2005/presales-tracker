@@ -577,7 +577,7 @@
           </div>
           <div class="stat-card">
             <div class="stat-value" id="statSupportQuick">0</div>
-            <div class="stat-label">需支持</div>
+            <div class="stat-label">上月</div>
           </div>
         </div>
 
@@ -1139,7 +1139,10 @@
       const mEl = document.getElementById('statMonthQuick');
       if (mEl) mEl.textContent = records.filter(r => r.createTime >= monthStart.getTime()).length;
       const sEl = document.getElementById('statSupportQuick');
-      if (sEl) sEl.textContent = records.filter(r => r.hasSupport).length;
+      if (sEl) {
+        const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+        sEl.textContent = records.filter(r => r.createTime >= lastMonthStart && r.createTime < monthStart).length;
+      }
     }
 
     // 刷新客户下拉
