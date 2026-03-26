@@ -666,17 +666,17 @@
             
             <div class="form-group">
               <label class="form-label">交流背景</label>
-              <textarea class="form-textarea" id="backgroundInput" placeholder="简要描述本次交流的背景和目的..."></textarea>
+              <textarea class="form-textarea" id="backgroundInput" placeholder="简要描述本次交流的背景和目的..." required></textarea>
             </div>
             
             <div class="form-group">
               <label class="form-label">交流总结</label>
-              <textarea class="form-textarea" id="summaryInput" placeholder="记录本次交流的主要内容和技术要点..."></textarea>
+              <textarea class="form-textarea" id="summaryInput" placeholder="记录本次交流的主要内容和技术要点..." required></textarea>
             </div>
             
             <div class="form-group">
               <label class="form-label">交流效果</label>
-              <textarea class="form-textarea" id="resultInput" placeholder="评估本次交流的效果和后续计划..."></textarea>
+              <textarea class="form-textarea" id="resultInput" placeholder="评估本次交流的效果和后续计划..." required></textarea>
             </div>
           </div>
           
@@ -1590,8 +1590,11 @@
       const opportunityId = document.getElementById('opportunitySelect').value;
       const status = document.getElementById('statusSelect').value;
       const salesName = document.getElementById('salesNameInput').value.trim();
+      const background = document.getElementById('backgroundInput').value.trim();
+      const summary = document.getElementById('summaryInput').value.trim();
+      const result = document.getElementById('resultInput').value.trim();
       
-      if (!customerId || !opportunityId || !status || !salesName) {
+      if (!customerId || !opportunityId || !status || !salesName || !background || !summary || !result) {
         showToast('请填写必填项');
         return;
       }
@@ -1624,9 +1627,9 @@
         hasSupport: document.getElementById('hasSupportSwitch').checked,
         supportNames: document.getElementById('supportNamesInput').value.trim(),
         presenter: document.getElementById('presenterInput').value.trim() || getMyName(),
-        background: document.getElementById('backgroundInput').value.trim(),
-        summary: document.getElementById('summaryInput').value.trim(),
-        result: document.getElementById('resultInput').value.trim(),
+        background,
+        summary,
+        result,
         createTime: recordCreateTime
       };
       
