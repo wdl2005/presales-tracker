@@ -121,8 +121,15 @@
     .stat-value { font-size: 24px; font-weight: 700; color: #4F46E5; }
     .stat-label { font-size: 11px; color: #9ca3af; margin-top: 2px; }
 
-    /* Section Title */
-    .stats-section { margin-bottom: 24px; }
+    /* Batch export bar */
+    .batch-bar {
+      display: flex; align-items: center; justify-content: space-between;
+      background: #EEF2FF; border-radius: 12px; padding: 10px 14px;
+      margin-bottom: 12px;
+    }
+    .btn-sm { padding: 6px 14px; font-size: 13px; }
+    .record-checkbox { margin-right: 10px; accent-color: #4F46E5; transform: scale(1.2); cursor: pointer; }
+    .record-item.with-checkbox { display: flex; align-items: center; padding: 12px 14px; }
 
     /* Tree View */
     .tree-customer { margin-bottom: 6px; }
@@ -675,6 +682,13 @@
       
       <!-- 记录列表页面 -->
       <div class="page" id="page-list">
+        <div id="batchBar" class="batch-bar" style="display:none;">
+          <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:#4F46E5;cursor:pointer;">
+            <input type="checkbox" id="selectAllRecords" onchange="toggleSelectAll()">
+            全选
+          </label>
+          <button class="btn btn-primary btn-sm" onclick="exportSelectedRecords()">📥 导出选中 (<span id="selectedCount">0</span>)</button>
+        </div>
         <div id="recordsList"></div>
       </div>
 
@@ -887,6 +901,8 @@
 
     // 当前选中记录
     let currentSelectedRecord = null;
+    // 批量导出选中的记录ID
+    let selectedRecordIds = new Set();
 
     // =============================================
     // Capacitor 文件持久化存储（备份层，不影响主逻辑）
@@ -1056,6 +1072,10 @@
             buildTrackerTree();
           } else if (tab.dataset.tab === 'stats') {
             buildStats();
+            // Chart.js needs delay to render in newly visible container
+            requestAnimationFrame(() => {
+              if (monthlyChart) monthlyChart.resize();
+            });
           }
         });
       });
@@ -1204,18 +1224,26 @@
         '已成交': 'green',
         '已失效': 'red'
       };
+
+      // Sort by createTime descending (newest first)
+      const sorted = [...records].sort((a, b) => new Date(b.createTime) - new Date(a.createTime));
       
-      container.innerHTML = records.map(r => `
-        <div class="record-item" onclick="showRecordDetail('${r.id}')">
-          <div class="record-header">
-            <div class="record-title">${r.opportunityName || '未命名商机'}</div>
-            <div class="record-time">${new Date(r.createTime).toLocaleDateString()}</div>
-          </div>
-          <div class="record-meta">🏢 ${r.customerName || ''} · 👤 ${r.salesName || ''}</div>
-          <div class="record-tags">
-            <span class="tag ${statusClass[r.status] || 'gray'}">${r.status}</span>
-            ${r.hasSupport ? '<span class="tag purple">需支持</span>' : ''}
-            ${r.location ? `<span class="tag gray">📍 ${r.location}</span>` : ''}
+      container.innerHTML = sorted.map(r => `
+        <div class="record-item with-checkbox" onclick="toggleRecordSelect('${r.id}', event)">
+          <input type="checkbox" class="record-checkbox" id="rec-chk-${r.id}" 
+            ${selectedRecordIds.has(r.id) ? 'checked' : ''} 
+            onclick="event.stopPropagation(); toggleRecordSelect('${r.id}', event)">
+          <div style="flex:1;" onclick="showRecordDetail('${r.id}')">
+            <div class="record-header">
+              <div class="record-title">${r.opportunityName || '未命名商机'}</div>
+              <div class="record-time">${new Date(r.createTime).toLocaleDateString()}</div>
+            </div>
+            <div class="record-meta">🏢 ${r.customerName || ''} · 👤 ${r.salesName || ''}</div>
+            <div class="record-tags">
+              <span class="tag ${statusClass[r.status] || 'gray'}">${r.status}</span>
+              ${r.hasSupport ? '<span class="tag purple">需支持</span>' : ''}
+              ${r.location ? `<span class="tag gray">📍 ${r.location}</span>` : ''}
+            </div>
           </div>
         </div>
       `).join('');
@@ -1421,8 +1449,11 @@
       const labels = months.map(m => m.label);
       const data = months.map(m => monthCounts[m.key]);
 
-      const ctx = document.getElementById('monthlyChart').getContext('2d');
-      if (monthlyChart) monthlyChart.destroy();
+      const canvas = document.getElementById('monthlyChart');
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+      if (monthlyChart) { monthlyChart.destroy(); monthlyChart = null; }
 
       monthlyChart = new Chart(ctx, {
         type: 'line',
@@ -1581,12 +1612,64 @@
       }
     }
 
+    // 批量选择记录
+    function toggleRecordSelect(id, event) {
+      if (selectedRecordIds.has(id)) {
+        selectedRecordIds.delete(id);
+      } else {
+        selectedRecordIds.add(id);
+      }
+      const count = selectedRecordIds.size;
+      document.getElementById('selectedCount').textContent = count;
+      document.getElementById('batchBar').style.display = count > 0 ? 'flex' : 'none';
+      const chk = document.getElementById('rec-chk-' + id);
+      if (chk) chk.checked = selectedRecordIds.has(id);
+    }
+
+    // 全选/取消全选
+    function toggleSelectAll() {
+      const allRecords = getRecords();
+      const selectAll = document.getElementById('selectAllRecords').checked;
+      if (selectAll) {
+        allRecords.forEach(r => selectedRecordIds.add(r.id));
+      } else {
+        selectedRecordIds.clear();
+      }
+      const count = selectedRecordIds.size;
+      document.getElementById('selectedCount').textContent = count;
+      document.getElementById('batchBar').style.display = count > 0 ? 'flex' : 'none';
+      // Update all checkboxes
+      allRecords.forEach(r => {
+        const chk = document.getElementById('rec-chk-' + r.id);
+        if (chk) chk.checked = selectAll;
+      });
+    }
+
+    // 批量导出选中的记录
+    function exportSelectedRecords() {
+      if (selectedRecordIds.size === 0) {
+        showToast('请先选择要导出的记录');
+        return;
+      }
+      const allRecords = getRecords();
+      const selected = allRecords.filter(r => selectedRecordIds.has(r.id));
+      if (selected.length === 0) {
+        showToast('未找到选中的记录');
+        return;
+      }
+      // Sort by createTime descending
+      selected.sort((a, b) => new Date(b.createTime) - new Date(a.createTime));
+      exportToExcel(selected);
+      showToast(`📥 已导出 ${selected.length} 条记录`);
+    }
+
     // 删除当前选中记录
     function deleteCurrentRecord() {
       if (!currentSelectedRecord) return;
       if (!confirm('确定删除此交流记录？删除后不可恢复。')) return;
       let records = getRecords();
       records = records.filter(r => r.id !== currentSelectedRecord.id);
+      selectedRecordIds.delete(currentSelectedRecord.id);
       saveRecords(records);
       refreshRecords();
       closeModal('detailModal');
