@@ -10,7 +10,6 @@
   <link rel="manifest" href="manifest.json">
   <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📊</text></svg>">
   <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
-  <script src="https://cdn.bootcdn.net/ajax/libs/echarts/5.4.3/echarts.min.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
     html, body { height: 100%; }
@@ -735,8 +734,16 @@
               <option value="">全部商机</option>
             </select>
           </div>
-          <div style="background:#fff;border-radius:12px;padding:16px;height:300px;">
-            <canvas id="monthlyChart" style="width:100%;height:100%;"></canvas>
+          <div style="background:#fff;border-radius:12px;padding:16px;">
+            <div id="chartPlaceholder" style="color:#9ca3af;font-size:13px;text-align:center;padding:20px;">正在加载图表...</div>
+            <div id="chartContainer" style="display:none;">
+              <div id="chartLegend" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px;justify-content:center;"></div>
+              <div style="position:relative;">
+                <div id="chartBars" style="display:flex;align-items:flex-end;justify-content:space-between;height:200px;gap:4px;padding-bottom:24px;border-bottom:1px solid #e5e7eb;"></div>
+                <div id="chartLabels" style="display:flex;justify-content:space-between;gap:4px;margin-top:4px;"></div>
+              </div>
+              <div id="chartTotals" style="display:flex;justify-content:space-between;gap:4px;margin-top:6px;font-size:11px;color:#f59e0b;font-weight:600;"></div>
+            </div>
           </div>
         </div>
       </div>
@@ -1075,14 +1082,6 @@
             buildTrackerTree();
           } else if (tab.dataset.tab === 'stats') {
             buildStats();
-            // Wait for CSS animation to complete (300ms), then init chart
-            setTimeout(() => {
-              drawMonthlyChart();
-              setTimeout(() => {
-                const dom = document.getElementById('monthlyChart');
-                if (monthlyChart && dom) monthlyChart.resize();
-              }, 100);
-            }, 350);
           }
         });
       });
@@ -1460,33 +1459,38 @@
 
 
     function drawMonthlyChart() {
+      const placeholder = document.getElementById('chartPlaceholder');
+      const container = document.getElementById('chartContainer');
+      const legendEl = document.getElementById('chartLegend');
+      const barsEl = document.getElementById('chartBars');
+      const labelsEl = document.getElementById('chartLabels');
+      const totalsEl = document.getElementById('chartTotals');
+
       const records = getRecords();
       const customers = getCustomers();
       const opportunities = getOpportunities();
       const custId = document.getElementById('statsCustomerSelect').value;
       const oppId = document.getElementById('statsOpportunitySelect').value;
 
+      // Build 12 months
       const months = [];
       const now = new Date();
       for (let i = 11; i >= 0; i--) {
         const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
         months.push({
-          label: `${d.getFullYear()}/${d.getMonth() + 1}`,
+          label: `${d.getMonth() + 1}月`,
           key: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
         });
       }
 
       const monthIdx = {};
       months.forEach((m, i) => monthIdx[m.key] = i);
-
       const colors = ['#4F46E5','#7c3aed','#ec4899','#f59e0b','#10b981','#3b82f6','#ef4444','#6366f1'];
 
-      let barSeries = [];
-      let legendNames = [];
-      let custOppMode = !custId; // true = by customer, false = by opportunity
-
+      // Build series data: array of {name, color, values: number[]}
+      const series = [];
       if (!custId) {
-        // 按客户
+        // By customer
         const custCount = {};
         customers.forEach(c => { custCount[c.id] = {}; months.forEach(m => { custCount[c.id][m.key] = 0; }); });
         records.forEach(r => {
@@ -1496,20 +1500,13 @@
           }
         });
         customers.forEach((c, i) => {
-          const hasData = Object.values(custCount[c.id]).some(v => v > 0);
-          if (hasData) {
-            barSeries.push({
-              name: c.name,
-              type: 'bar',
-              barGap: '8%',
-              itemStyle: { color: colors[i % colors.length], borderRadius: [4, 4, 0, 0] },
-              data: months.map(m => custCount[c.id][m.key])
-            });
-            legendNames.push(c.name);
+          const vals = months.map(m => custCount[c.id][m.key]);
+          if (vals.some(v => v > 0)) {
+            series.push({ name: c.name, color: colors[i % colors.length], values: vals });
           }
         });
       } else if (!oppId) {
-        // 按商机（当前客户的商机）
+        // By opportunity (within selected customer)
         const oppCount = {};
         const custOpps = opportunities.filter(o => o.customerId === custId);
         custOpps.forEach(o => { oppCount[o.id] = {}; months.forEach(m => { oppCount[o.id][m.key] = 0; }); });
@@ -1520,20 +1517,13 @@
           }
         });
         custOpps.forEach((o, i) => {
-          const hasData = Object.values(oppCount[o.id]).some(v => v > 0);
-          if (hasData) {
-            barSeries.push({
-              name: o.name,
-              type: 'bar',
-              barGap: '8%',
-              itemStyle: { color: colors[i % colors.length], borderRadius: [4, 4, 0, 0] },
-              data: months.map(m => oppCount[o.id][m.key])
-            });
-            legendNames.push(o.name);
+          const vals = months.map(m => oppCount[o.id][m.key]);
+          if (vals.some(v => v > 0)) {
+            series.push({ name: o.name, color: colors[i % colors.length], values: vals });
           }
         });
       } else {
-        // 只显示选中商机
+        // Single opportunity
         const opp = opportunities.find(o => o.id === oppId);
         const oppCount = {};
         months.forEach(m => { oppCount[m.key] = 0; });
@@ -1543,46 +1533,65 @@
             if (monthIdx[key] !== undefined) oppCount[key]++;
           }
         });
-        barSeries.push({
-          name: opp ? opp.name : '商机',
-          type: 'bar',
-          itemStyle: { color: colors[0], borderRadius: [4, 4, 0, 0] },
-          data: months.map(m => oppCount[m.key])
-        });
-        legendNames.push(opp ? opp.name : '商机');
+        series.push({ name: opp ? opp.name : '商机', color: colors[0], values: months.map(m => oppCount[m.key]) });
       }
 
-      // 合计曲线
-      const totals = months.map((m, i) => barSeries.reduce((s, ds) => s + (ds.data[i] || 0), 0));
-      barSeries.push({
-        name: '月度合计',
-        type: 'line',
-        yAxisIndex: 0,
-        itemStyle: { color: '#f59e0b', borderRadius: 0 },
-        lineStyle: { width: 2 },
-        smooth: 0.3,
-        data: totals
-      });
-      legendNames.push('月度合计');
+      // Calculate totals
+      const totals = months.map((_, i) => series.reduce((s, ds) => s + (ds.values[i] || 0), 0));
+      const maxVal = Math.max(...totals, 1);
 
-      const dom = document.getElementById('monthlyChart');
-      if (!dom) return;
-
-      if (!monthlyChart) {
-        monthlyChart = echarts.init(dom, null, { renderer: 'canvas' });
+      if (series.length === 0) {
+        placeholder.textContent = '暂无数据，请先添加交流记录';
+        placeholder.style.display = 'block';
+        container.style.display = 'none';
+        return;
       }
 
-      monthlyChart.setOption({
-        tooltip: { trigger: 'axis', axisPointer: { type: 'cross' } },
-        legend: { data: legendNames, bottom: 0, textStyle: { fontSize: 11 } },
-        grid: { top: 10, left: 10, right: 10, bottom: 40, containLabel: true },
-        xAxis: { type: 'category', data: months.map(m => m.label), axisLabel: { fontSize: 10 } },
-        yAxis: { type: 'value', minInterval: 1, axisLabel: { fontSize: 10 } },
-        series: barSeries
-      }, true);
+      // Render legend
+      legendEl.innerHTML = series.map((s, i) =>
+        `<span style="display:inline-flex;align-items:center;gap:4px;font-size:12px;">
+          <span style="width:10px;height:10px;border-radius:2px;background:${s.color};display:inline-block;"></span>
+          ${s.name}
+        </span>`
+      ).join('') +
+      `<span style="display:inline-flex;align-items:center;gap:4px;font-size:12px;">
+        <span style="width:18px;height:2px;background:#f59e0b;display:inline-block;border-radius:1px;"></span>
+        月度合计
+      </span>`;
 
-      // Ensure chart resizes to fill container after DOM is visible
-      monthlyChart.resize();
+      // Render bars
+      const BAR_H = 180; // max bar height in px
+      barsEl.innerHTML = months.map((m, mi) => {
+        const total = totals[mi];
+        const totalHeight = Math.round((total / maxVal) * BAR_H);
+        return `<div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:0;">
+          ${series.map((s, si) => {
+            const val = s.values[mi] || 0;
+            const segH = val > 0 ? Math.max(2, Math.round((val / maxVal) * BAR_H)) : 0;
+            const stackTop = series.slice(0, si).reduce((sum, prev) => sum + (prev.values[mi] || 0), 0);
+            const offset = stackTop > 0 ? Math.round((stackTop / maxVal) * BAR_H) : 0;
+            return val > 0
+              ? `<div style="width:100%;height:${segH}px;background:${s.color};border-radius:2px 2px 0 0;position:relative;" title="${s.name} ${val}次">
+                  ${val > 0 ? `<span style="position:absolute;top:-16px;left:50%;transform:translateX(-50%);font-size:9px;color:#374151;font-weight:600;">${val}</span>` : ''}
+                 </div>`
+              : `<div style="width:100%;height:2px;"></div>`;
+          }).join('')}
+        </div>`;
+      }).join('');
+
+      // Render x-axis labels
+      labelsEl.innerHTML = months.map(m =>
+        `<div style="flex:1;text-align:center;font-size:10px;color:#9ca3af;">${m.label}</div>`
+      ).join('');
+
+      // Render totals line (simple HTML dots connected by line)
+      totalsEl.innerHTML = months.map((m, mi) => {
+        const pct = maxVal > 0 ? (totals[mi] / maxVal * 100).toFixed(1) : 0;
+        return `<div style="flex:1;text-align:center;color:#f59e0b;font-size:11px;font-weight:600;">${totals[mi] > 0 ? totals[mi] + '次' : '-'}</div>`;
+      }).join('');
+
+      placeholder.style.display = 'none';
+      container.style.display = 'block';
     }
 
     // 加载我的姓名
