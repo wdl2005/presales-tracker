@@ -1990,7 +1990,7 @@
               <div class="list-item-sub">${c.city || '未设置城市'}</div>
             </div>
             <span class="list-item-action" onclick="event.stopPropagation(); showEditCustomer('${c.id}')">编辑</span>
-            <span class="list-item-action text-danger" onclick="event.stopPropagation(); deleteCustomer('${c.id}')">删除</span>
+            <span class="list-item-action text-danger" style="margin-left:12px;" onclick="event.stopPropagation(); deleteCustomer('${c.id}')">删除</span>
           </div>
         `).join('');
       }
@@ -2033,7 +2033,7 @@
                 <div class="list-item-sub">${customer?.name || '未知客户'} · <span class="tag ${statusClass[o.status] || 'gray'}" style="padding:2px 6px;font-size:11px;">${o.status}</span></div>
               </div>
               <span class="list-item-action" onclick="event.stopPropagation(); showEditOpportunity('${o.id}')">编辑</span>
-              <span class="list-item-action text-danger" onclick="event.stopPropagation(); deleteOpportunity('${o.id}')">删除</span>
+              <span class="list-item-action text-danger" style="margin-left:12px;" onclick="event.stopPropagation(); deleteOpportunity('${o.id}')">删除</span>
             </div>
           `;
         }).join('');
