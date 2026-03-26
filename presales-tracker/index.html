@@ -1425,6 +1425,10 @@
           oppSelect.innerHTML += `<option value="${o.id}">${o.name}</option>`;
         });
       }
+      // 重建后恢复之前选中的商机值
+      if (oppId) {
+        oppSelect.value = oppId;
+      }
 
       const hint = document.getElementById('chartHint');
       if (custId && oppId) {
