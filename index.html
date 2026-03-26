@@ -10,7 +10,7 @@
   <link rel="manifest" href="manifest.json">
   <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📊</text></svg>">
   <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+  <script src="https://unpkg.com/echarts@5.4.3/dist/echarts.min.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
     html, body { height: 100%; }
@@ -904,6 +904,8 @@
     let currentSelectedRecord = null;
     // 批量导出选中的记录ID
     let selectedRecordIds = new Set();
+    // ECharts 图表实例
+    let monthlyChart = null;
 
     // =============================================
     // Capacitor 文件持久化存储（备份层，不影响主逻辑）
@@ -1073,10 +1075,10 @@
             buildTrackerTree();
           } else if (tab.dataset.tab === 'stats') {
             buildStats();
-            // Chart.js needs a small delay after page becomes visible to render properly
-            setTimeout(() => {
-              drawMonthlyChart();
-            }, 100);
+            // Wait for page to become visible, then draw chart
+            requestAnimationFrame(() => {
+              setTimeout(() => { drawMonthlyChart(); }, 50);
+            });
           }
         });
       });
@@ -1336,7 +1338,6 @@
     // =====================
     // 统计分析
     // =====================
-    let monthlyChart = null;
 
     function buildStats() {
       const records = getRecords();
@@ -1453,7 +1454,6 @@
       drawMonthlyChart();
     }
 
-    let monthlyChart = null;
 
     function drawMonthlyChart() {
       const records = getRecords();
@@ -1576,6 +1576,9 @@
         yAxis: { type: 'value', minInterval: 1, axisLabel: { fontSize: 10 } },
         series: barSeries
       }, true);
+
+      // Ensure chart resizes to fill container after DOM is visible
+      monthlyChart.resize();
     }
 
     // 加载我的姓名
