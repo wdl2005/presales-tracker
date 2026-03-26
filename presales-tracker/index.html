@@ -735,7 +735,7 @@
             </select>
           </div>
           <div style="background:#fff;border-radius:12px;padding:16px;">
-            <canvas id="monthlyChart" style="max-height:260px;"></canvas>
+            <canvas id="monthlyChart" style="max-height:280px;width:100%;"></canvas>
           </div>
         </div>
       </div>
@@ -1072,10 +1072,10 @@
             buildTrackerTree();
           } else if (tab.dataset.tab === 'stats') {
             buildStats();
-            // Chart.js needs delay to render in newly visible container
-            requestAnimationFrame(() => {
-              if (monthlyChart) monthlyChart.resize();
-            });
+            // Chart.js needs a small delay after page becomes visible to render properly
+            setTimeout(() => {
+              drawMonthlyChart();
+            }, 100);
           }
         });
       });
@@ -1425,10 +1425,10 @@
       if (custId) filtered = filtered.filter(r => r.customerId === custId);
       if (oppId) filtered = filtered.filter(r => r.opportunityId === oppId);
 
-      // 整理最近6个月的数据
+      // 整理最近12个月的数据
       const months = [];
       const now = new Date();
-      for (let i = 5; i >= 0; i--) {
+      for (let i = 11; i >= 0; i--) {
         const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
         months.push({
           label: `${d.getFullYear()}/${d.getMonth() + 1}`,
@@ -1472,6 +1472,7 @@
         },
         options: {
           responsive: true,
+          maintainAspectRatio: false,
           plugins: {
             legend: { display: false }
           },
