@@ -725,7 +725,7 @@
         </div>
         <div class="stats-section">
           <div class="section-title">📈 月度交流趋势</div>
-          <div id="chartHint" style="font-size:12px;color:#9ca3af;margin-bottom:8px;">柱状：各客户每月次数 · 曲线：月度合计</div>
+          <div id="chartHint" style="font-size:12px;color:#9ca3af;margin-bottom:8px;">堆叠柱状：各客户每月次数（下方数字：月度合计）</div>
           <div style="margin-bottom:8px;text-align:right;">
             <select id="statsCustomerSelect" class="form-select" style="width:auto;display:inline-block;font-size:13px;" onchange="onCustomerOrOppChange()">
               <option value="">全部客户</option>
@@ -1082,6 +1082,8 @@
             buildTrackerTree();
           } else if (tab.dataset.tab === 'stats') {
             buildStats();
+            // Delay to ensure the page is visible before drawing chart
+            setTimeout(drawMonthlyChart, 50);
           }
         });
       });
@@ -1420,7 +1422,7 @@
 
       // 更新 hint
       const hint = document.getElementById('chartHint');
-      if (hint) hint.textContent = '柱状：各客户每月次数 · 曲线：月度合计';
+      if (hint) hint.textContent = '堆叠柱状：各客户每月次数（下方数字：月度合计）';
 
       drawMonthlyChart();
     }
@@ -1446,10 +1448,10 @@
       const hint = document.getElementById('chartHint');
       if (custId && oppId) {
         const opp = opportunities.find(o => o.id === oppId);
-        hint.textContent = `柱状：${opp ? opp.name : '商机'}每月次数 · 曲线：月度合计`;
+        hint.textContent = `堆叠柱状：${opp ? opp.name : '商机'}每月次数（下方数字：月度合计）`;
       } else if (custId) {
         const cust = customers.find(c => c.id === custId);
-        hint.textContent = `柱状：${cust ? cust.name : '客户'}下各商机每月次数 · 曲线：月度合计`;
+        hint.textContent = `堆叠柱状：${cust ? cust.name : '客户'}下各商机每月次数（下方数字：月度合计）`;
       } else {
         hint.textContent = '柱状：各客户每月次数 · 曲线：月度合计';
       }
