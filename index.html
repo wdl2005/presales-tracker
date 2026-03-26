@@ -732,10 +732,10 @@
           <div class="section-title">📈 月度交流趋势</div>
           <div id="chartHint" style="font-size:12px;color:#9ca3af;margin-bottom:8px;">堆叠柱状：各客户每月次数（下方数字：月度合计）</div>
           <div style="margin-bottom:8px;text-align:right;">
-            <select id="statsCustomerSelect" class="form-select" style="width:auto;display:inline-block;font-size:13px;" onchange="onCustomerOrOppChange()">
+            <select id="statsCustomerSelect" class="form-select" style="width:auto;display:inline-block;font-size:13px;" onchange="onCustomerOrOppChange('customer')">
               <option value="">全部客户</option>
             </select>
-            <select id="statsOpportunitySelect" class="form-select" style="width:auto;display:inline-block;font-size:13px;margin-left:6px;" onchange="onCustomerOrOppChange()">
+            <select id="statsOpportunitySelect" class="form-select" style="width:auto;display:inline-block;font-size:13px;margin-left:6px;" onchange="onCustomerOrOppChange('opp')">
               <option value="">全部商机</option>
             </select>
           </div>
@@ -1408,12 +1408,18 @@
       drawMonthlyChart();
     }
 
-    function onCustomerOrOppChange() {
+    function onCustomerOrOppChange(changedBy) {
       const custId = document.getElementById('statsCustomerSelect').value;
-      const oppId = document.getElementById('statsOpportunitySelect').value;
       const oppSelect = document.getElementById('statsOpportunitySelect');
       const opportunities = getOpportunities();
       const customers = getCustomers();
+
+      // 如果是客户下拉触发的变化，清空商机选择
+      if (changedBy === 'customer') {
+        oppSelect.value = '';
+      }
+
+      const oppId = oppSelect.value;
 
       oppSelect.innerHTML = '<option value="">全部商机</option>';
       if (custId) {
@@ -1425,10 +1431,15 @@
           oppSelect.innerHTML += `<option value="${o.id}">${o.name}</option>`;
         });
       }
+      // 重建后恢复商机选中值（仅当该商机属于当前客户时才生效）
+      if (oppId) {
+        oppSelect.value = oppId;
+      }
 
       const hint = document.getElementById('chartHint');
-      if (custId && oppId) {
-        const opp = opportunities.find(o => o.id === oppId);
+      const currentOppId = oppSelect.value; // 重建后实际选中的值
+      if (custId && currentOppId) {
+        const opp = opportunities.find(o => o.id === currentOppId);
         hint.textContent = `堆叠柱状：${opp ? opp.name : '商机'}每月次数（下方数字：月度合计）`;
       } else if (custId) {
         const cust = customers.find(c => c.id === custId);
