@@ -1082,8 +1082,10 @@
             buildTrackerTree();
           } else if (tab.dataset.tab === 'stats') {
             buildStats();
-            // Delay to ensure the page is visible before drawing chart
-            setTimeout(drawMonthlyChart, 50);
+            // Wait for transition to finish (300ms) before drawing chart
+            setTimeout(() => {
+              drawMonthlyChart();
+            }, 350);
           }
         });
       });
@@ -1477,8 +1479,11 @@
       const records = getRecords();
       const customers = getCustomers();
       const opportunities = getOpportunities();
-      const custId = document.getElementById('statsCustomerSelect').value;
-      const oppId = document.getElementById('statsOpportunitySelect').value;
+      const custId = document.getElementById('statsCustomerSelect') ? document.getElementById('statsCustomerSelect').value : '';
+      const oppId = document.getElementById('statsOpportunitySelect') ? document.getElementById('statsOpportunitySelect').value : '';
+
+      // DEBUG
+      window._debugChart = { records: records.length, customers: customers.length, opportunities: opportunities.length };
 
       // Build 12 months
       const months = [];
@@ -1503,8 +1508,8 @@
         customers.forEach(c => { custCount[c.id] = {}; months.forEach(m => { custCount[c.id][m.key] = 0; }); });
         records.forEach(r => {
           if (r.createTime) {
-            const key = r.createTime.substring(0, 7);
-            if (monthIdx[key] !== undefined && custCount[r.customerId]) custCount[r.customerId][key]++;
+            const createDateStr = typeof r.createTime === 'number' ? new Date(r.createTime).toISOString().substring(0, 7) : String(r.createTime).substring(0, 7);
+            if (monthIdx[createDateStr] !== undefined && custCount[r.customerId]) custCount[r.customerId][createDateStr]++;
           }
         });
         customers.forEach((c, i) => {
@@ -1520,8 +1525,8 @@
         custOpps.forEach(o => { oppCount[o.id] = {}; months.forEach(m => { oppCount[o.id][m.key] = 0; }); });
         records.forEach(r => {
           if (r.createTime && r.customerId === custId) {
-            const key = r.createTime.substring(0, 7);
-            if (monthIdx[key] !== undefined && oppCount[r.opportunityId]) oppCount[r.opportunityId][key]++;
+            const createDateStr = typeof r.createTime === 'number' ? new Date(r.createTime).toISOString().substring(0, 7) : String(r.createTime).substring(0, 7);
+            if (monthIdx[createDateStr] !== undefined && oppCount[r.opportunityId]) oppCount[r.opportunityId][createDateStr]++;
           }
         });
         custOpps.forEach((o, i) => {
@@ -1537,8 +1542,8 @@
         months.forEach(m => { oppCount[m.key] = 0; });
         records.forEach(r => {
           if (r.createTime && r.opportunityId === oppId) {
-            const key = r.createTime.substring(0, 7);
-            if (monthIdx[key] !== undefined) oppCount[key]++;
+            const createDateStr = typeof r.createTime === 'number' ? new Date(r.createTime).toISOString().substring(0, 7) : String(r.createTime).substring(0, 7);
+            if (monthIdx[createDateStr] !== undefined) oppCount[createDateStr]++;
           }
         });
         series.push({ name: opp ? opp.name : '商机', color: colors[0], values: months.map(m => oppCount[m.key]) });
@@ -1549,7 +1554,7 @@
       const maxVal = Math.max(...totals, 1);
 
       if (series.length === 0) {
-        placeholder.textContent = '暂无数据，请先添加交流记录';
+        placeholder.textContent = '暂无数据，请先添加交流记录（记录数:' + records.length + '，客户数:' + customers.length + '）';
         placeholder.style.display = 'block';
         container.style.display = 'none';
         return;
