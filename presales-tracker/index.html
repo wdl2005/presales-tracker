@@ -256,6 +256,9 @@
     .btn-block { width: 100%; }
     .btn-sm { padding: 8px 14px; font-size: 13px; min-height: 40px; border-radius: 10px; }
     .btn-icon { width: 44px; padding: 0; min-height: 44px; }
+    .btn-danger { background: #ef4444; color: white; }
+    .btn-danger:active { background: #dc2626; transform: scale(0.97); }
+    .text-danger { color: #ef4444; }
 
     /* Record List */
     .record-item {
@@ -648,6 +651,7 @@
       </div>
       <div class="modal-body" id="detailContent"></div>
       <div class="modal-footer">
+        <button class="btn btn-danger" onclick="deleteCurrentRecord()">🗑️ 删除</button>
         <button class="btn btn-secondary" onclick="closeModal('detailModal')">关闭</button>
         <button class="btn btn-primary" onclick="exportSelectedRecord()">📥 导出</button>
       </div>
@@ -677,14 +681,15 @@
     </div>
   </div>
   
-  <!-- 新增客户弹窗 -->
+  <!-- 新增/编辑客户弹窗 -->
   <div class="modal-overlay" id="addCustomerModal">
     <div class="modal">
       <div class="modal-header">
-        <h3>🏢 新增客户</h3>
+        <h3 id="customerModalTitle">🏢 新增客户</h3>
         <button class="modal-close" onclick="closeModal('addCustomerModal')">×</button>
       </div>
       <div class="modal-body">
+        <input type="hidden" id="editingCustomerId">
         <div class="form-group">
           <label class="form-label">客户名称 *</label>
           <input type="text" class="form-input" id="newCustomerName" placeholder="请输入客户名称">
@@ -696,19 +701,20 @@
       </div>
       <div class="modal-footer">
         <button class="btn btn-secondary" onclick="closeModal('addCustomerModal')">取消</button>
-        <button type="button" class="btn btn-primary" onclick="addCustomer()">添加</button>
+        <button type="button" class="btn btn-primary" id="customerSaveBtn" onclick="addCustomer()">添加</button>
       </div>
     </div>
   </div>
   
-  <!-- 新增商机弹窗 -->
+  <!-- 新增/编辑商机弹窗 -->
   <div class="modal-overlay" id="addOpportunityModal">
     <div class="modal">
       <div class="modal-header">
-        <h3>💼 新增商机</h3>
+        <h3 id="opportunityModalTitle">💼 新增商机</h3>
         <button class="modal-close" onclick="closeModal('addOpportunityModal')">×</button>
       </div>
       <div class="modal-body">
+        <input type="hidden" id="editingOpportunityId">
         <div class="form-group">
           <label class="form-label">商机名称 *</label>
           <input type="text" class="form-input" id="newOpportunityName" placeholder="请输入商机名称">
@@ -729,7 +735,7 @@
       </div>
       <div class="modal-footer">
         <button class="btn btn-secondary" onclick="closeModal('addOpportunityModal')">取消</button>
-        <button type="button" class="btn btn-primary" onclick="addOpportunity()">添加</button>
+        <button type="button" class="btn btn-primary" id="opportunitySaveBtn" onclick="addOpportunity()">添加</button>
       </div>
     </div>
   </div>
@@ -1124,6 +1130,18 @@
       }
     }
 
+    // 删除当前选中记录
+    function deleteCurrentRecord() {
+      if (!currentSelectedRecord) return;
+      if (!confirm('确定删除此交流记录？删除后不可恢复。')) return;
+      let records = getRecords();
+      records = records.filter(r => r.id !== currentSelectedRecord.id);
+      saveRecords(records);
+      refreshRecords();
+      closeModal('detailModal');
+      showToast('🗑️ 已删除');
+    }
+
     // 导出 Excel
     function exportToExcel(records) {
       if (!records || records.length === 0) {
@@ -1169,12 +1187,29 @@
     }
 
     function showAddCustomer() {
+      document.getElementById('editingCustomerId').value = '';
       document.getElementById('newCustomerName').value = '';
       document.getElementById('newCustomerCity').value = '';
+      document.getElementById('customerModalTitle').innerHTML = '🏢 新增客户';
+      document.getElementById('customerSaveBtn').textContent = '添加';
+      document.getElementById('addCustomerModal').classList.add('show');
+    }
+
+    function showEditCustomer(id) {
+      const customers = getCustomers();
+      const customer = customers.find(c => c.id === id);
+      if (!customer) return;
+      document.getElementById('editingCustomerId').value = id;
+      document.getElementById('newCustomerName').value = customer.name;
+      document.getElementById('newCustomerCity').value = customer.city || '';
+      document.getElementById('customerModalTitle').innerHTML = '🏢 编辑客户';
+      document.getElementById('customerSaveBtn').textContent = '保存';
+      closeModal('manageCustomersModal');
       document.getElementById('addCustomerModal').classList.add('show');
     }
 
     function addCustomer() {
+      const editingId = document.getElementById('editingCustomerId').value;
       const name = document.getElementById('newCustomerName').value.trim();
       const city = document.getElementById('newCustomerCity').value.trim();
       
@@ -1184,24 +1219,57 @@
       }
       
       const customers = getCustomers();
-      customers.push({ id: generateId(), name, city });
-      saveCustomers(customers);
       
-      refreshCustomers();
-      closeModal('addCustomerModal');
-      document.getElementById('customerSelect').value = customers[customers.length - 1].id;
-      showToast('✅ 客户添加成功');
+      if (editingId) {
+        // Edit existing
+        const idx = customers.findIndex(c => c.id === editingId);
+        if (idx !== -1) {
+          customers[idx].name = name;
+          customers[idx].city = city;
+        }
+        saveCustomers(customers);
+        refreshCustomers();
+        closeModal('addCustomerModal');
+        showToast('✅ 客户已更新');
+      } else {
+        // Add new
+        customers.push({ id: generateId(), name, city });
+        saveCustomers(customers);
+        refreshCustomers();
+        closeModal('addCustomerModal');
+        document.getElementById('customerSelect').value = customers[customers.length - 1].id;
+        showToast('✅ 客户添加成功');
+      }
     }
 
     function showAddOpportunity() {
       refreshCustomers();
+      document.getElementById('editingOpportunityId').value = '';
       document.getElementById('newOpportunityName').value = '';
       document.getElementById('newOpportunityCustomer').value = document.getElementById('customerSelect').value;
       document.getElementById('newOpportunityStatus').value = '待跟进';
+      document.getElementById('opportunityModalTitle').innerHTML = '💼 新增商机';
+      document.getElementById('opportunitySaveBtn').textContent = '添加';
+      document.getElementById('addOpportunityModal').classList.add('show');
+    }
+
+    function showEditOpportunity(id) {
+      const opportunities = getOpportunities();
+      const opp = opportunities.find(o => o.id === id);
+      if (!opp) return;
+      refreshCustomers();
+      document.getElementById('editingOpportunityId').value = id;
+      document.getElementById('newOpportunityName').value = opp.name;
+      document.getElementById('newOpportunityCustomer').value = opp.customerId;
+      document.getElementById('newOpportunityStatus').value = opp.status;
+      document.getElementById('opportunityModalTitle').innerHTML = '💼 编辑商机';
+      document.getElementById('opportunitySaveBtn').textContent = '保存';
+      closeModal('manageOpportunitiesModal');
       document.getElementById('addOpportunityModal').classList.add('show');
     }
 
     function addOpportunity() {
+      const editingId = document.getElementById('editingOpportunityId').value;
       const name = document.getElementById('newOpportunityName').value.trim();
       const customerId = document.getElementById('newOpportunityCustomer').value;
       const status = document.getElementById('newOpportunityStatus').value;
@@ -1212,13 +1280,28 @@
       }
       
       const opportunities = getOpportunities();
-      opportunities.push({ id: generateId(), name, customerId, status });
-      saveOpportunities(opportunities);
       
-      refreshOpportunities();
-      closeModal('addOpportunityModal');
-      document.getElementById('opportunitySelect').value = opportunities[opportunities.length - 1].id;
-      showToast('✅ 商机组添加成功');
+      if (editingId) {
+        // Edit existing
+        const idx = opportunities.findIndex(o => o.id === editingId);
+        if (idx !== -1) {
+          opportunities[idx].name = name;
+          opportunities[idx].customerId = customerId;
+          opportunities[idx].status = status;
+        }
+        saveOpportunities(opportunities);
+        refreshOpportunities();
+        closeModal('addOpportunityModal');
+        showToast('✅ 商机已更新');
+      } else {
+        // Add new
+        opportunities.push({ id: generateId(), name, customerId, status });
+        saveOpportunities(opportunities);
+        refreshOpportunities();
+        closeModal('addOpportunityModal');
+        document.getElementById('opportunitySelect').value = opportunities[opportunities.length - 1].id;
+        showToast('✅ 商机添加成功');
+      }
     }
 
     function showAddStatus() {
@@ -1263,7 +1346,8 @@
               <div class="list-item-title">${c.name}</div>
               <div class="list-item-sub">${c.city || '未设置城市'}</div>
             </div>
-            <span class="list-item-action" onclick="event.stopPropagation(); deleteCustomer('${c.id}')">删除</span>
+            <span class="list-item-action" onclick="event.stopPropagation(); showEditCustomer('${c.id}')">编辑</span>
+            <span class="list-item-action text-danger" onclick="event.stopPropagation(); deleteCustomer('${c.id}')">删除</span>
           </div>
         `).join('');
       }
@@ -1305,7 +1389,8 @@
                 <div class="list-item-title">${o.name}</div>
                 <div class="list-item-sub">${customer?.name || '未知客户'} · <span class="tag ${statusClass[o.status] || 'gray'}" style="padding:2px 6px;font-size:11px;">${o.status}</span></div>
               </div>
-              <span class="list-item-action" onclick="event.stopPropagation(); deleteOpportunity('${o.id}')">删除</span>
+              <span class="list-item-action" onclick="event.stopPropagation(); showEditOpportunity('${o.id}')">编辑</span>
+              <span class="list-item-action text-danger" onclick="event.stopPropagation(); deleteOpportunity('${o.id}')">删除</span>
             </div>
           `;
         }).join('');
