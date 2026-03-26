@@ -568,15 +568,15 @@
         <!-- 快速统计 -->
         <div class="stats-row">
           <div class="stat-card">
-            <div class="stat-value" id="statTotal">0</div>
+            <div class="stat-value" id="statTotalQuick">0</div>
             <div class="stat-label">总记录</div>
           </div>
           <div class="stat-card">
-            <div class="stat-value" id="statMonth">0</div>
+            <div class="stat-value" id="statMonthQuick">0</div>
             <div class="stat-label">本月</div>
           </div>
           <div class="stat-card">
-            <div class="stat-value" id="statSupport">0</div>
+            <div class="stat-value" id="statSupportQuick">0</div>
             <div class="stat-label">需支持</div>
           </div>
         </div>
@@ -1163,10 +1163,13 @@
       const records = getRecords();
       const now = new Date();
       const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-      
-      document.getElementById('statTotal').textContent = records.length;
-      document.getElementById('statMonth').textContent = records.filter(r => r.createTime >= monthStart.getTime()).length;
-      document.getElementById('statSupport').textContent = records.filter(r => r.hasSupport).length;
+
+      const el = document.getElementById('statTotalQuick');
+      if (el) el.textContent = records.length;
+      const mEl = document.getElementById('statMonthQuick');
+      if (mEl) mEl.textContent = records.filter(r => r.createTime >= monthStart.getTime()).length;
+      const sEl = document.getElementById('statSupportQuick');
+      if (sEl) sEl.textContent = records.filter(r => r.hasSupport).length;
     }
 
     // 刷新客户下拉
@@ -1350,9 +1353,12 @@
       const opportunities = getOpportunities();
 
       // 基本统计
-      document.getElementById('statTotal').textContent = records.length;
-      document.getElementById('statCustomerCount').textContent = customers.length;
-      document.getElementById('statOpportunityCount').textContent = opportunities.length;
+      const el = document.getElementById('statTotal');
+      if (el) el.textContent = records.length;
+      const custEl = document.getElementById('statCustomerCount');
+      if (custEl) custEl.textContent = customers.length;
+      const oppEl = document.getElementById('statOpportunityCount');
+      if (oppEl) oppEl.textContent = opportunities.length;
 
       // 按客户统计
       const customerStats = {};
