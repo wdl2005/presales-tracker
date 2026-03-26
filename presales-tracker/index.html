@@ -1423,7 +1423,11 @@
 
       oppSelect.innerHTML = '<option value="">全部商机</option>';
       if (custId) {
-        opportunities.filter(o => o.customerId === custId).forEach(o => {
+        const filteredOpps = opportunities.filter(o => o.customerId === custId);
+        if (filteredOpps.length === 0) {
+          console.warn('[Chart] 客户ID=', custId, '下无商机，当前所有商机:', opportunities.map(o => ({id: o.id, name: o.name, customerId: o.customerId})));
+        }
+        filteredOpps.forEach(o => {
           oppSelect.innerHTML += `<option value="${o.id}">${o.name}</option>`;
         });
       } else {

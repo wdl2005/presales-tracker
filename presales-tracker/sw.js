@@ -1,4 +1,4 @@
-const CACHE_NAME = 'presales-tracker-v2';
+const CACHE_NAME = 'presales-tracker-v3';
 const urlsToCache = [
   './',
   './index.html',
