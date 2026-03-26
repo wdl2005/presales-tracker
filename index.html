@@ -10,7 +10,7 @@
   <link rel="manifest" href="manifest.json">
   <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📊</text></svg>">
   <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
     html, body { height: 100%; }
@@ -1428,19 +1428,19 @@
       const opportunities = getOpportunities();
       const customers = getCustomers();
 
-      // 商机下拉重置为"全部"，且根据是否选客户来过滤可选商机
       oppSelect.innerHTML = '<option value="">全部商机</option>';
       if (custId) {
-        const custOpps = opportunities.filter(o => o.customerId === custId);
-        custOpps.forEach(o => { oppSelect.innerHTML += `<option value="${o.id}">${o.name}</option>`; });
+        opportunities.filter(o => o.customerId === custId).forEach(o => {
+          oppSelect.innerHTML += `<option value="${o.id}">${o.name}</option>`;
+        });
       } else {
-        opportunities.forEach(o => { oppSelect.innerHTML += `<option value="${o.id}">${o.name}</option>`; });
+        opportunities.forEach(o => {
+          oppSelect.innerHTML += `<option value="${o.id}">${o.name}</option>`;
+        });
       }
 
-      // 更新提示文字
       const hint = document.getElementById('chartHint');
       if (custId && oppId) {
-        const cust = customers.find(c => c.id === custId);
         const opp = opportunities.find(o => o.id === oppId);
         hint.textContent = `柱状：${opp ? opp.name : '商机'}每月次数 · 曲线：月度合计`;
       } else if (custId) {
@@ -1453,6 +1453,8 @@
       drawMonthlyChart();
     }
 
+    let monthlyChart = null;
+
     function drawMonthlyChart() {
       const records = getRecords();
       const customers = getCustomers();
@@ -1460,7 +1462,6 @@
       const custId = document.getElementById('statsCustomerSelect').value;
       const oppId = document.getElementById('statsOpportunitySelect').value;
 
-      // 整理最近12个月
       const months = [];
       const now = new Date();
       for (let i = 11; i >= 0; i--) {
@@ -1471,143 +1472,110 @@
         });
       }
 
-      // 确定分组维度
-      // 模式1: 无筛选 -> 按客户分组
-      // 模式2: 只选客户 -> 按商机分组
-      // 模式3: 客户+商机 -> 只显示该商机的柱状
-      let groupByKey = null; // null = customer, string = opportunity id
-      if (custId && oppId) {
-        groupByKey = oppId;
-      } else if (custId) {
-        groupByKey = 'opportunity';
-      }
-
-      // 构建月份索引
       const monthIdx = {};
       months.forEach((m, i) => monthIdx[m.key] = i);
 
-      // 颜色池
-      const colors = ['#4F46E5','#7c3aed','#ec4899','#f59e0b','#10b981','#3b82f6','#ef4444','#6b7280'];
+      const colors = ['#4F46E5','#7c3aed','#ec4899','#f59e0b','#10b981','#3b82f6','#ef4444','#6366f1'];
 
-      let datasets = [];
+      let barSeries = [];
+      let legendNames = [];
+      let custOppMode = !custId; // true = by customer, false = by opportunity
 
-      if (!groupByKey) {
-        // 模式1: 按客户分组，每客户一条柱状
-        const custMonthCount = {}; // { custId: { monthKey: count } }
-        customers.forEach(c => { custMonthCount[c.id] = {}; months.forEach(m => custMonthCount[c.id][m.key] = 0); });
-
+      if (!custId) {
+        // 按客户
+        const custCount = {};
+        customers.forEach(c => { custCount[c.id] = {}; months.forEach(m => { custCount[c.id][m.key] = 0; }); });
         records.forEach(r => {
           if (r.createTime) {
             const key = r.createTime.substring(0, 7);
-            if (monthIdx[key] !== undefined && custMonthCount[r.customerId]) {
-              custMonthCount[r.customerId][key]++;
-            }
+            if (monthIdx[key] !== undefined && custCount[r.customerId]) custCount[r.customerId][key]++;
           }
         });
-
-        const usedCustomers = customers.filter(c => Object.values(custMonthCount[c.id]).some(v => v > 0));
-        datasets = usedCustomers.map((c, i) => ({
-          label: c.name,
-          data: months.map(m => custMonthCount[c.id][m.key]),
-          backgroundColor: colors[i % colors.length] + 'cc',
-          borderColor: colors[i % colors.length],
-          borderWidth: 1,
-          borderRadius: 4
-        }));
-
-      } else if (groupByKey === 'opportunity') {
-        // 模式2: 按商机分组（仅当前客户的商机）
+        customers.forEach((c, i) => {
+          const hasData = Object.values(custCount[c.id]).some(v => v > 0);
+          if (hasData) {
+            barSeries.push({
+              name: c.name,
+              type: 'bar',
+              barGap: '8%',
+              itemStyle: { color: colors[i % colors.length], borderRadius: [4, 4, 0, 0] },
+              data: months.map(m => custCount[c.id][m.key])
+            });
+            legendNames.push(c.name);
+          }
+        });
+      } else if (!oppId) {
+        // 按商机（当前客户的商机）
+        const oppCount = {};
         const custOpps = opportunities.filter(o => o.customerId === custId);
-        const oppMonthCount = {};
-        custOpps.forEach(o => { oppMonthCount[o.id] = {}; months.forEach(m => oppMonthCount[o.id][m.key] = 0); });
-
+        custOpps.forEach(o => { oppCount[o.id] = {}; months.forEach(m => { oppCount[o.id][m.key] = 0; }); });
         records.forEach(r => {
           if (r.createTime && r.customerId === custId) {
             const key = r.createTime.substring(0, 7);
-            if (monthIdx[key] !== undefined && oppMonthCount[r.opportunityId]) {
-              oppMonthCount[r.opportunityId][key]++;
-            }
+            if (monthIdx[key] !== undefined && oppCount[r.opportunityId]) oppCount[r.opportunityId][key]++;
           }
         });
-
-        const usedOpps = custOpps.filter(o => Object.values(oppMonthCount[o.id]).some(v => v > 0));
-        datasets = usedOpps.map((o, i) => ({
-          label: o.name,
-          data: months.map(m => oppMonthCount[o.id][m.key]),
-          backgroundColor: colors[i % colors.length] + 'cc',
-          borderColor: colors[i % colors.length],
-          borderWidth: 1,
-          borderRadius: 4
-        }));
-
+        custOpps.forEach((o, i) => {
+          const hasData = Object.values(oppCount[o.id]).some(v => v > 0);
+          if (hasData) {
+            barSeries.push({
+              name: o.name,
+              type: 'bar',
+              barGap: '8%',
+              itemStyle: { color: colors[i % colors.length], borderRadius: [4, 4, 0, 0] },
+              data: months.map(m => oppCount[o.id][m.key])
+            });
+            legendNames.push(o.name);
+          }
+        });
       } else {
-        // 模式3: 只显示选中商机
+        // 只显示选中商机
         const opp = opportunities.find(o => o.id === oppId);
-        const oppMonthCount = {};
-        months.forEach(m => { oppMonthCount[m.key] = 0; });
+        const oppCount = {};
+        months.forEach(m => { oppCount[m.key] = 0; });
         records.forEach(r => {
           if (r.createTime && r.opportunityId === oppId) {
             const key = r.createTime.substring(0, 7);
-            if (monthIdx[key] !== undefined) oppMonthCount[key]++;
+            if (monthIdx[key] !== undefined) oppCount[key]++;
           }
         });
-        datasets = [{
-          label: opp ? opp.name : '商机',
-          data: months.map(m => oppMonthCount[m.key]),
-          backgroundColor: '#4F46E5cc',
-          borderColor: '#4F46E5',
-          borderWidth: 1,
-          borderRadius: 4
-        }];
+        barSeries.push({
+          name: opp ? opp.name : '商机',
+          type: 'bar',
+          itemStyle: { color: colors[0], borderRadius: [4, 4, 0, 0] },
+          data: months.map(m => oppCount[m.key])
+        });
+        legendNames.push(opp ? opp.name : '商机');
       }
 
-      // 计算每月合计（用于曲线）
-      const monthlyTotals = months.map((m, i) => datasets.reduce((sum, ds) => sum + (ds.data[i] || 0), 0));
-      const lineColor = '#f59e0b';
-      datasets.push({
-        label: '月度合计',
-        data: monthlyTotals,
+      // 合计曲线
+      const totals = months.map((m, i) => barSeries.reduce((s, ds) => s + (ds.data[i] || 0), 0));
+      barSeries.push({
+        name: '月度合计',
         type: 'line',
-        borderColor: lineColor,
-        backgroundColor: 'transparent',
-        borderWidth: 2,
-        pointRadius: 3,
-        pointBackgroundColor: lineColor,
-        tension: 0.3,
-        yAxisID: 'y'
+        yAxisIndex: 0,
+        itemStyle: { color: '#f59e0b', borderRadius: 0 },
+        lineStyle: { width: 2 },
+        smooth: 0.3,
+        data: totals
       });
+      legendNames.push('月度合计');
 
-      const labels = months.map(m => m.label);
+      const dom = document.getElementById('monthlyChart');
+      if (!dom) return;
 
-      const canvas = document.getElementById('monthlyChart');
-      if (!canvas) return;
-      const ctx = canvas.getContext('2d');
-      if (!ctx) return;
-      if (monthlyChart) { monthlyChart.destroy(); monthlyChart = null; }
+      if (!monthlyChart) {
+        monthlyChart = echarts.init(dom, null, { renderer: 'canvas' });
+      }
 
-      monthlyChart = new Chart(ctx, {
-        data: {
-          labels: labels,
-          datasets: datasets
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          plugins: {
-            legend: { position: 'bottom', labels: { boxWidth: 12, padding: 8, font: { size: 11 } } }
-          },
-          scales: {
-            y: {
-              beginAtZero: true,
-              ticks: { stepSize: 1, font: { size: 11 } },
-              grid: { color: '#f3f4f6' }
-            },
-            x: {
-              ticks: { font: { size: 11 }, grid: { display: false } }
-            }
-          }
-        }
-      });
+      monthlyChart.setOption({
+        tooltip: { trigger: 'axis', axisPointer: { type: 'cross' } },
+        legend: { data: legendNames, bottom: 0, textStyle: { fontSize: 11 } },
+        grid: { top: 10, left: 10, right: 10, bottom: 40, containLabel: true },
+        xAxis: { type: 'category', data: months.map(m => m.label), axisLabel: { fontSize: 10 } },
+        yAxis: { type: 'value', minInterval: 1, axisLabel: { fontSize: 10 } },
+        series: barSeries
+      }, true);
     }
 
     // 加载我的姓名
