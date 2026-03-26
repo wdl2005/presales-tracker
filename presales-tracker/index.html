@@ -10,6 +10,7 @@
   <link rel="manifest" href="manifest.json">
   <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📊</text></svg>">
   <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
     html, body { height: 100%; }
@@ -119,6 +120,41 @@
     }
     .stat-value { font-size: 24px; font-weight: 700; color: #4F46E5; }
     .stat-label { font-size: 11px; color: #9ca3af; margin-top: 2px; }
+
+    /* Section Title */
+    .stats-section { margin-bottom: 24px; }
+
+    /* Tree View */
+    .tree-customer { margin-bottom: 6px; }
+    .tree-customer-header {
+      display: flex; align-items: center; gap: 8px;
+      background: #f3f4f6; border-radius: 10px; padding: 12px 14px;
+      cursor: pointer; user-select: none; transition: background 0.15s;
+    }
+    .tree-customer-header:hover { background: #e5e7eb; }
+    .tree-arrow { font-size: 10px; transition: transform 0.2s; color: #9ca3af; }
+    .tree-arrow.open { transform: rotate(90deg); }
+    .tree-customer-name { font-weight: 600; font-size: 14px; color: #111827; flex: 1; }
+    .tree-count { font-size: 11px; color: #6b7280; background: #e5e7eb; border-radius: 8px; padding: 2px 7px; }
+    .tree-opportunities { display: none; padding-left: 20px; margin-top: 4px; }
+    .tree-opportunities.open { display: block; }
+    .tree-opportunity {
+      display: flex; align-items: center; gap: 8px;
+      background: white; border: 1px solid #f3f4f6; border-radius: 10px;
+      padding: 10px 14px; margin-bottom: 4px; cursor: pointer;
+      transition: all 0.15s;
+    }
+    .tree-opportunity:hover { border-color: #4F46E5; background: #f9faff; }
+    .tree-opp-name { flex: 1; font-size: 13px; color: #374151; }
+    .tree-records { display: none; padding-left: 16px; margin: 4px 0 8px 0; }
+    .tree-records.open { display: block; }
+    .tree-record-item {
+      background: #f9fafb; border-radius: 8px; padding: 8px 12px; margin-bottom: 4px;
+      font-size: 12px; color: #4b5563; cursor: pointer;
+      border-left: 3px solid #7c3aed;
+    }
+    .tree-record-item:hover { background: #ede9fe; }
+    .tree-record-meta { display: flex; justify-content: space-between; margin-top: 3px; color: #9ca3af; font-size: 11px; }
 
     /* Section Title */
     .section-title {
@@ -516,6 +552,8 @@
     <nav class="tab-bar">
       <div class="tab active" data-tab="record">📝 录入</div>
       <div class="tab" data-tab="list">📋 记录</div>
+      <div class="tab" data-tab="tracker">🔍 跟踪</div>
+      <div class="tab" data-tab="stats">📊 统计</div>
     </nav>
     
     <main class="content">
@@ -638,6 +676,54 @@
       <!-- 记录列表页面 -->
       <div class="page" id="page-list">
         <div id="recordsList"></div>
+      </div>
+
+      <!-- 商机跟踪页面 -->
+      <div class="page" id="page-tracker">
+        <div id="trackerTree"></div>
+      </div>
+
+      <!-- 统计分析页面 -->
+      <div class="page" id="page-stats">
+        <div class="stats-section">
+          <div class="section-title" style="margin-bottom:12px;">📋 交流次数统计</div>
+          <div class="stats-row">
+            <div class="stat-card">
+              <div class="stat-value" id="statTotal">0</div>
+              <div class="stat-label">总交流次数</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-value" id="statCustomerCount">0</div>
+              <div class="stat-label">客户总数</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-value" id="statOpportunityCount">0</div>
+              <div class="stat-label">商机总数</div>
+            </div>
+          </div>
+        </div>
+        <div class="stats-section">
+          <div class="section-title">🏢 交流次数 Top5（客户）</div>
+          <div id="topCustomersList"></div>
+        </div>
+        <div class="stats-section">
+          <div class="section-title">💼 交流次数 Top5（商机）</div>
+          <div id="topOpportunitiesList"></div>
+        </div>
+        <div class="stats-section">
+          <div class="section-title">📈 月度交流趋势对比</div>
+          <div style="margin-bottom:8px;text-align:right;">
+            <select id="statsCustomerSelect" class="form-select" style="width:auto;display:inline-block;font-size:13px;" onchange="drawMonthlyChart()">
+              <option value="">全部客户</option>
+            </select>
+            <select id="statsOpportunitySelect" class="form-select" style="width:auto;display:inline-block;font-size:13px;margin-left:6px;" onchange="drawMonthlyChart()">
+              <option value="">全部商机</option>
+            </select>
+          </div>
+          <div style="background:#fff;border-radius:12px;padding:16px;">
+            <canvas id="monthlyChart" style="max-height:260px;"></canvas>
+          </div>
+        </div>
       </div>
     </main>
   </div>
@@ -842,6 +928,10 @@
           document.getElementById('page-' + tab.dataset.tab).classList.add('active');
           if (tab.dataset.tab === 'list') {
             refreshRecords();
+          } else if (tab.dataset.tab === 'tracker') {
+            buildTrackerTree();
+          } else if (tab.dataset.tab === 'stats') {
+            buildStats();
           }
         });
       });
@@ -1005,6 +1095,243 @@
           </div>
         </div>
       `).join('');
+    }
+
+    // =====================
+    // 商机跟踪树
+    // =====================
+    let trackerExpandedCustomers = {};
+    let trackerExpandedOpportunities = {};
+
+    function buildTrackerTree() {
+      const customers = getCustomers();
+      const opportunities = getOpportunities();
+      const records = getRecords();
+      const container = document.getElementById('trackerTree');
+
+      if (customers.length === 0) {
+        container.innerHTML = '<div class="empty-state"><div class="empty-icon">🏢</div><div class="empty-title">暂无客户</div><div class="empty-desc">请先添加客户和商机</div></div>';
+        return;
+      }
+
+      let html = '';
+      customers.forEach(customer => {
+        const custOpps = opportunities.filter(o => o.customerId === customer.id);
+        const custRecordCount = records.filter(r => r.customerId === customer.id).length;
+        const isOpen = trackerExpandedCustomers[customer.id];
+
+        html += `
+          <div class="tree-customer">
+            <div class="tree-customer-header" onclick="toggleCustomer('${customer.id}')">
+              <span class="tree-arrow ${isOpen ? 'open' : ''}" id="arrow-cust-${customer.id}">▶</span>
+              <span class="tree-customer-name">${customer.name}</span>
+              <span class="tree-count">${custRecordCount}次</span>
+            </div>
+            <div class="tree-opportunities ${isOpen ? 'open' : ''}" id="cust-opps-${customer.id}">
+              ${custOpps.length === 0 ? '<div style="font-size:12px;color:#9ca3af;padding:8px 0;">暂无商机</div>' : custOpps.map(opp => {
+                const oppRecords = records.filter(r => r.opportunityId === opp.id);
+                const isOppOpen = trackerExpandedOpportunities[opp.id];
+                return `
+                  <div class="tree-opp-wrapper">
+                    <div class="tree-opportunity" onclick="toggleOpportunity('${opp.id}')">
+                      <span class="tree-arrow ${isOppOpen ? 'open' : ''}" id="arrow-opp-${opp.id}">▶</span>
+                      <span class="tree-opp-name">${opp.name}</span>
+                      <span class="tree-count">${oppRecords.length}次</span>
+                    </div>
+                    <div class="tree-records ${isOppOpen ? 'open' : ''}" id="opp-records-${opp.id}">
+                      ${oppRecords.length === 0 ? '<div style="font-size:11px;color:#d1d5db;padding:4px 0 8px 0;">暂无交流记录</div>' :
+                        oppRecords
+                          .sort((a, b) => new Date(b.createTime) - new Date(a.createTime))
+                          .map(r => `
+                            <div class="tree-record-item" onclick="showRecordDetail('${r.id}')">
+                              <div>${r.summary || r.background || '未填写交流内容'}</div>
+                              <div class="tree-record-meta">
+                                <span>👤 ${r.salesName || ''}</span>
+                                <span>📅 ${new Date(r.createTime).toLocaleDateString()}</span>
+                              </div>
+                            </div>
+                          `).join('')
+                      }
+                    </div>
+                  </div>
+                `;
+              }).join('')}
+            </div>
+          </div>
+        `;
+      });
+
+      container.innerHTML = html;
+    }
+
+    function toggleCustomer(id) {
+      trackerExpandedCustomers[id] = !trackerExpandedCustomers[id];
+      const arrow = document.getElementById('arrow-cust-' + id);
+      const opps = document.getElementById('cust-opps-' + id);
+      if (arrow) arrow.classList.toggle('open');
+      if (opps) opps.classList.toggle('open');
+    }
+
+    function toggleOpportunity(id) {
+      trackerExpandedOpportunities[id] = !trackerExpandedOpportunities[id];
+      const arrow = document.getElementById('arrow-opp-' + id);
+      const recs = document.getElementById('opp-records-' + id);
+      if (arrow) arrow.classList.toggle('open');
+      if (recs) recs.classList.toggle('open');
+    }
+
+    // =====================
+    // 统计分析
+    // =====================
+    let monthlyChart = null;
+
+    function buildStats() {
+      const records = getRecords();
+      const customers = getCustomers();
+      const opportunities = getOpportunities();
+
+      // 基本统计
+      document.getElementById('statTotal').textContent = records.length;
+      document.getElementById('statCustomerCount').textContent = customers.length;
+      document.getElementById('statOpportunityCount').textContent = opportunities.length;
+
+      // 按客户统计
+      const customerStats = {};
+      records.forEach(r => {
+        customerStats[r.customerId] = (customerStats[r.customerId] || 0) + 1;
+      });
+      const topCustomers = Object.entries(customerStats)
+        .map(([id, count]) => {
+          const c = customers.find(c => c.id === id);
+          return { name: c ? c.name : '未知客户', count };
+        })
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 5);
+
+      const topCustContainer = document.getElementById('topCustomersList');
+      if (topCustomers.length === 0) {
+        topCustContainer.innerHTML = '<div style="font-size:13px;color:#9ca3af;text-align:center;padding:16px;">暂无数据</div>';
+      } else {
+        topCustContainer.innerHTML = topCustomers.map((c, i) => `
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;background:#f9fafb;border-radius:10px;padding:10px 14px;">
+            <div style="font-size:13px;font-weight:700;color:#4F46E5;min-width:20px;">${i + 1}</div>
+            <div style="flex:1;font-size:13px;color:#111827;">${c.name}</div>
+            <div style="font-size:13px;font-weight:600;color:#111827;">${c.count}次</div>
+            <div style="flex:2;height:6px;background:#e5e7eb;border-radius:3px;overflow:hidden;">
+              <div style="width:${(c.count / topCustomers[0].count * 100).toFixed(1)}%;height:100%;background:linear-gradient(90deg,#4F46E5,#7c3aed);border-radius:3px;"></div>
+            </div>
+          </div>
+        `).join('');
+      }
+
+      // 按商机统计
+      const oppStats = {};
+      records.forEach(r => {
+        oppStats[r.opportunityId] = (oppStats[r.opportunityId] || 0) + 1;
+      });
+      const topOpportunities = Object.entries(oppStats)
+        .map(([id, count]) => {
+          const o = opportunities.find(o => o.id === id);
+          return { name: o ? o.name : '未知商机', count };
+        })
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 5);
+
+      const topOppContainer = document.getElementById('topOpportunitiesList');
+      if (topOpportunities.length === 0) {
+        topOppContainer.innerHTML = '<div style="font-size:13px;color:#9ca3af;text-align:center;padding:16px;">暂无数据</div>';
+      } else {
+        topOppContainer.innerHTML = topOpportunities.map((o, i) => `
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;background:#f9fafb;border-radius:10px;padding:10px 14px;">
+            <div style="font-size:13px;font-weight:700;color:#7c3aed;min-width:20px;">${i + 1}</div>
+            <div style="flex:1;font-size:13px;color:#111827;">${o.name}</div>
+            <div style="font-size:13px;font-weight:600;color:#111827;">${o.count}次</div>
+            <div style="flex:2;height:6px;background:#e5e7eb;border-radius:3px;overflow:hidden;">
+              <div style="width:${(o.count / topOpportunities[0].count * 100).toFixed(1)}%;height:100%;background:linear-gradient(90deg,#7c3aed,#ec4899);border-radius:3px;"></div>
+            </div>
+          </div>
+        `).join('');
+      }
+
+      // 填充筛选下拉
+      const custSelect = document.getElementById('statsCustomerSelect');
+      const oppSelect = document.getElementById('statsOpportunitySelect');
+      custSelect.innerHTML = '<option value="">全部客户</option>' +
+        customers.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+      oppSelect.innerHTML = '<option value="">全部商机</option>' +
+        opportunities.map(o => `<option value="${o.id}">${o.name}</option>`).join('');
+
+      drawMonthlyChart();
+    }
+
+    function drawMonthlyChart() {
+      const records = getRecords();
+      const custId = document.getElementById('statsCustomerSelect').value;
+      const oppId = document.getElementById('statsOpportunitySelect').value;
+
+      let filtered = records;
+      if (custId) filtered = filtered.filter(r => r.customerId === custId);
+      if (oppId) filtered = filtered.filter(r => r.opportunityId === oppId);
+
+      // 整理最近6个月的数据
+      const months = [];
+      const now = new Date();
+      for (let i = 5; i >= 0; i--) {
+        const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        months.push({
+          label: `${d.getFullYear()}/${d.getMonth() + 1}`,
+          key: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+        });
+      }
+
+      // 按月份统计
+      const monthCounts = {};
+      months.forEach(m => monthCounts[m.key] = 0);
+      filtered.forEach(r => {
+        if (r.createTime) {
+          const key = r.createTime.substring(0, 7); // YYYY-MM
+          if (monthCounts[key] !== undefined) monthCounts[key]++;
+        }
+      });
+
+      const labels = months.map(m => m.label);
+      const data = months.map(m => monthCounts[m.key]);
+
+      const ctx = document.getElementById('monthlyChart').getContext('2d');
+      if (monthlyChart) monthlyChart.destroy();
+
+      monthlyChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: labels,
+          datasets: [{
+            label: '交流次数',
+            data: data,
+            borderColor: '#7c3aed',
+            backgroundColor: 'rgba(124,58,237,0.08)',
+            fill: true,
+            tension: 0.4,
+            pointRadius: 4,
+            pointBackgroundColor: '#7c3aed'
+          }]
+        },
+        options: {
+          responsive: true,
+          plugins: {
+            legend: { display: false }
+          },
+          scales: {
+            y: {
+              beginAtZero: true,
+              ticks: { stepSize: 1, font: { size: 11 } },
+              grid: { color: '#f3f4f6' }
+            },
+            x: {
+              ticks: { font: { size: 11 }, grid: { display: false } }
+            }
+          }
+        }
+      });
     }
 
     // 加载我的姓名
