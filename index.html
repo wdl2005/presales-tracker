@@ -625,6 +625,11 @@
             </div>
             
             <div class="form-group">
+              <label class="form-label">交流时间</label>
+              <input type="date" class="form-input" id="recordDate">
+            </div>
+            
+            <div class="form-group">
               <label class="form-label">销售姓名 *</label>
               <input type="text" class="form-input" id="salesNameInput" placeholder="请输入销售姓名" required>
             </div>
@@ -1094,6 +1099,14 @@
     // 表单初始化
     function initForm() {
       document.getElementById('recordForm').addEventListener('submit', saveRecord);
+      
+      // Initialize date to today
+      const dateInput = document.getElementById('recordDate');
+      if (dateInput) {
+        const today = new Date();
+        dateInput.value = today.toISOString().substring(0,10);
+        dateInput.max = today.toISOString().substring(0,10);
+      }
       
       document.getElementById('customerSelect').addEventListener('change', (e) => {
         refreshOpportunities();
@@ -1656,6 +1669,10 @@
         saveOpportunities(opportunities);
       }
       
+      const recordDateInput = document.getElementById('recordDate');
+      const recordDateStr = recordDateInput ? recordDateInput.value : '';
+      const recordCreateTime = recordDateStr ? new Date(recordDateStr + 'T12:00:00').getTime() : Date.now();
+      
       const record = {
         id: generateId(),
         customerId,
@@ -1672,7 +1689,7 @@
         background: document.getElementById('backgroundInput').value.trim(),
         summary: document.getElementById('summaryInput').value.trim(),
         result: document.getElementById('resultInput').value.trim(),
-        createTime: Date.now()
+        createTime: recordCreateTime
       };
       
       const records = getRecords();
