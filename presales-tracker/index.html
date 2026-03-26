@@ -839,9 +839,11 @@
         <div class="form-group">
           <label class="form-label">商机状态</label>
           <select class="form-select" id="newOpportunityStatus">
-            <option value="待跟进">待跟进</option>
-            <option value="跟进中">跟进中</option>
-            <option value="已成交">已成交</option>
+            <option value="初次接触">初次接触</option>
+            <option value="立项前交流">立项前交流</option>
+            <option value="立项后交流">立项后交流</option>
+            <option value="招投标支持">招投标支持</option>
+            <option value="合同签订支持">合同签订支持</option>
             <option value="已失效">已失效</option>
           </select>
         </div>
@@ -1012,7 +1014,7 @@
     }
 
     function getStatuses() {
-      const defaults = ['待跟进', '跟进中', '已成交', '已失效'];
+      const defaults = ['初次接触', '立项前交流', '立项后交流', '招投标支持', '合同签订支持', '已失效'];
       const saved = JSON.parse(localStorage.getItem(STORAGE_KEYS.STATUSES) || 'null');
       return saved || defaults;
     }
@@ -1198,9 +1200,11 @@
       }
       
       const statusClass = {
-        '待跟进': 'yellow',
-        '跟进中': 'blue',
-        '已成交': 'green',
+        '初次接触': 'yellow',
+        '立项前交流': 'purple',
+        '立项后交流': 'blue',
+        '招投标支持': 'orange',
+        '合同签订支持': 'green',
         '已失效': 'red'
       };
 
@@ -1649,9 +1653,11 @@
       currentSelectedRecord = record;
       
       const statusClass = {
-        '待跟进': 'yellow',
-        '跟进中': 'blue',
-        '已成交': 'green',
+        '初次接触': 'yellow',
+        '立项前交流': 'purple',
+        '立项后交流': 'blue',
+        '招投标支持': 'orange',
+        '合同签订支持': 'green',
         '已失效': 'red'
       };
       
@@ -1866,7 +1872,7 @@
       document.getElementById('editingOpportunityId').value = '';
       document.getElementById('newOpportunityName').value = '';
       document.getElementById('newOpportunityCustomer').value = document.getElementById('customerSelect').value;
-      document.getElementById('newOpportunityStatus').value = '待跟进';
+      document.getElementById('newOpportunityStatus').value = '初次接触';
       document.getElementById('opportunityModalTitle').innerHTML = '💼 新增商机';
       document.getElementById('opportunitySaveBtn').textContent = '添加';
       document.getElementById('addOpportunityModal').classList.add('show');
@@ -2001,7 +2007,7 @@
       } else {
         container.innerHTML = opportunities.map(o => {
           const customer = customers.find(c => c.id === o.customerId);
-          const statusClass = { '待跟进': 'yellow', '跟进中': 'blue', '已成交': 'green', '已失效': 'red' };
+          const statusClass = { '初次接触': 'yellow', '立项前交流': 'purple', '立项后交流': 'blue', '招投标支持': 'orange', '合同签订支持': 'green', '已失效': 'red' };
           return `
             <div class="list-item">
               <div class="list-item-content">
