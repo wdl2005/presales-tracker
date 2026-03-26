@@ -10,7 +10,7 @@
   <link rel="manifest" href="manifest.json">
   <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📊</text></svg>">
   <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
-  <script src="https://unpkg.com/echarts@5.4.3/dist/echarts.min.js"></script>
+  <script src="https://cdn.bootcdn.net/ajax/libs/echarts/5.4.3/echarts.min.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
     html, body { height: 100%; }
@@ -1075,10 +1075,14 @@
             buildTrackerTree();
           } else if (tab.dataset.tab === 'stats') {
             buildStats();
-            // Wait for page to become visible, then draw chart
-            requestAnimationFrame(() => {
-              setTimeout(() => { drawMonthlyChart(); }, 50);
-            });
+            // Wait for CSS animation to complete (300ms), then init chart
+            setTimeout(() => {
+              drawMonthlyChart();
+              setTimeout(() => {
+                const dom = document.getElementById('monthlyChart');
+                if (monthlyChart && dom) monthlyChart.resize();
+              }, 100);
+            }, 350);
           }
         });
       });
