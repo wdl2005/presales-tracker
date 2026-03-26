@@ -888,8 +888,132 @@
     // 当前选中记录
     let currentSelectedRecord = null;
 
+    // =============================================
+    // Capacitor 文件持久化存储（备份层，不影响主逻辑）
+    // =============================================
+    const USE_CAPACITOR_FS = !!(window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Filesystem);
+    const FILE_DIR = 'PresalesData';
+    const FS_FILES = {
+      customers: 'customers.json',
+      opportunities: 'opportunities.json',
+      records: 'records.json',
+      statuses: 'statuses.json',
+      myname: 'myname.json'
+    };
+
+    // 异步写文件（静默失败，不阻塞主程序）
+    async function fsWrite(filename, data) {
+      if (!USE_CAPACITOR_FS) return;
+      try {
+        const dir = window.Capacitor.Plugins.Filesystem.Directory.Documents;
+        await window.Capacitor.Plugins.Filesystem.mkdir({ path: FILE_DIR, directory: dir, recursive: true });
+        await window.Capacitor.Plugins.Filesystem.writeFile({
+          path: FILE_DIR + '/' + filename,
+          data: data,
+          directory: dir,
+          encoding: window.Capacitor.Plugins.Filesystem.Encoding.UTF8
+        });
+      } catch (e) {}
+    }
+
+    // 异步读文件（仅启动时用）
+    async function fsRead(filename) {
+      if (!USE_CAPACITOR_FS) return null;
+      try {
+        const result = await window.Capacitor.Plugins.Filesystem.readFile({
+          path: FILE_DIR + '/' + filename,
+          directory: window.Capacitor.Plugins.Filesystem.Directory.Documents,
+          encoding: window.Capacitor.Plugins.Filesystem.Encoding.UTF8
+        });
+        return result.data;
+      } catch (e) {
+        return null;
+      }
+    }
+
+    // 启动时：从文件恢复 localStorage（如果本地数据为空或无效）
+    async function fsRestoreData() {
+      if (!USE_CAPACITOR_FS) return;
+      const keyMap = {
+        CUSTOMERS: 'customers.json',
+        OPPORTUNITIES: 'opportunities.json',
+        RECORDS: 'records.json',
+        STATUSES: 'statuses.json',
+        MY_NAME: 'myname.json'
+      };
+      for (const [lsKey, fsFile] of Object.entries(keyMap)) {
+        const lsVal = localStorage.getItem(STORAGE_KEYS[lsKey]);
+        const parsed = lsVal ? JSON.parse(lsVal) : null;
+        if (!lsVal || (Array.isArray(parsed) && parsed.length === 0) || (parsed === null && lsVal === 'null')) {
+          const fsData = await fsRead(fsFile);
+          if (fsData) {
+            localStorage.setItem(STORAGE_KEYS[lsKey], fsData);
+          }
+        }
+      }
+    }
+
+    // =============================================
+    // 数据读写（保持原有同步 localStorage 逻辑不变）
+    // =============================================
+    function getCustomers() {
+      return JSON.parse(localStorage.getItem(STORAGE_KEYS.CUSTOMERS) || '[]');
+    }
+
+    function saveCustomers(customers) {
+      const data = JSON.stringify(customers);
+      localStorage.setItem(STORAGE_KEYS.CUSTOMERS, data);
+      fsWrite(FS_FILES.customers, data); // 异步写文件备份
+    }
+
+    function getOpportunities() {
+      return JSON.parse(localStorage.getItem(STORAGE_KEYS.OPPORTUNITIES) || '[]');
+    }
+
+    function saveOpportunities(opportunities) {
+      const data = JSON.stringify(opportunities);
+      localStorage.setItem(STORAGE_KEYS.OPPORTUNITIES, data);
+      fsWrite(FS_FILES.opportunities, data);
+    }
+
+    function getStatuses() {
+      const defaults = ['待跟进', '跟进中', '已成交', '已失效'];
+      const saved = JSON.parse(localStorage.getItem(STORAGE_KEYS.STATUSES) || 'null');
+      return saved || defaults;
+    }
+
+    function saveStatuses(statuses) {
+      const data = JSON.stringify(statuses);
+      localStorage.setItem(STORAGE_KEYS.STATUSES, data);
+      fsWrite(FS_FILES.statuses, data);
+    }
+
+    function getRecords() {
+      return JSON.parse(localStorage.getItem(STORAGE_KEYS.RECORDS) || '[]');
+    }
+
+    function saveRecords(records) {
+      const data = JSON.stringify(records);
+      localStorage.setItem(STORAGE_KEYS.RECORDS, data);
+      fsWrite(FS_FILES.records, data);
+    }
+
+    function getMyName() {
+      return localStorage.getItem(STORAGE_KEYS.MY_NAME) || '';
+    }
+
+    function saveMyNameValue(name) {
+      localStorage.setItem(STORAGE_KEYS.MY_NAME, name);
+      fsWrite(FS_FILES.myname, name);
+    }
+
+    // =============================================
     // 初始化
-    document.addEventListener('DOMContentLoaded', () => {
+    // =============================================
+    document.addEventListener('DOMContentLoaded', async () => {
+      if (USE_CAPACITOR_FS) {
+        await fsRestoreData(); // 从文件恢复数据（如需要）
+      }
       loadMyName();
       initSwitches();
       initTabs();
